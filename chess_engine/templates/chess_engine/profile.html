@@ -1,0 +1,303 @@
+{% extends 'chess_engine/base.html' %}
+{% load static %}
+{% load chess_engine_extras %}
+
+{% block title %}Player {{ context.target_user }}{% endblock %}
+
+{% block body %}
+    <style>
+        .edge_cell {
+            background-color: #{{ context.user_customization.chess.board_edge_cells_background_color }};
+            color: #{{ context.user_customization.chess.board_edge_cells_text_color }};
+            font-family: '{{ context.user_customization.chess.board_font_family }}';
+            font-size: {{ context.user_customization.chess.board_font_size }}px;
+            padding-left: 3px;
+            padding-right: 3px;
+        }
+    </style>
+    <script>
+    function update_colorset(update_type, input_id) {
+        var input_value = $('#' + input_id).val();
+        if (input_value.substr(0, 1) == '#') {
+            input_value = input_value.substr(1);
+        }
+        url = '/profile/{{ context.target_user.id }}/' + update_type + '/' + input_id + '/' + input_value;
+        window.location.href = url;
+    }
+    </script>
+    <div style="display: none;"><form>{% csrf_token %}</form></div>
+
+    {% with cells_folder="/static/chess_engine/pieces/"|add:context.user_pieces.folder_name %}
+    <div class="row">
+        <div class="col-xs-12 col-sm-6 col-lg-4">
+            <div class="panel panel-info">
+                <div class="panel-heading">
+                    <label class="panel-title">General information</label>
+                    {% if context.target_user == request.user %}
+                    <div id="UpdatePasswordModal" class="modal fade" role="dialog">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pull-right">
+                        <a class="btn-sm btn-primary" data-toggle="modal" data-target="#UpdatePasswordModal" data-keyboard="false" href="{% url "update-password" pk=context.target_user.id %}">Change password</a>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="panel-body">
+                    <form class="form-vertical">
+                        <div class="input-group">
+                            <div class="input-group-addon"><label class="control-label" for="player_name">Name</label></div>
+                            <input id="player_name" type="text" class="form-control text-muted" title="Name" value="{{ context.target_user.username }}" readonly="readonly">
+                        </div>
+                        <div class="input-group">
+                            <div class="input-group-addon"><label class="col-xs-2 control-label" for="player_email">Email</label></div>
+                            <input id="player_email" type="text" class="form-control text-muted" title="Email" value="{{ context.target_user.email }}" readonly="readonly">
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-6 col-lg-4">
+            <div class="panel panel-info">
+                <div class="panel-heading">
+                    <label class="panel-title">Performance</label>
+                    {% if context.performances %}
+                    <div class="pull-right">
+                        <a href="https://fr.wikipedia.org/wiki/Classement_Elo" target="_blank"><span class="glyphicon glyphicon-info-sign"></span></a>
+                        &nbsp;
+                        <a class="btn-sm btn-primary" data-toggle="modal" data-target="#ShowRankedHistoryModal" data-keyboard="false" href="{% url "show-history" pk=context.target_user.id type='ranked' %}">Ranked history</a>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="panel-body">
+                    <div id="ShowRankedHistoryModal" class="modal fade" role="dialog">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                            </div>
+                        </div>
+                    </div>
+                    <form class="form-vertical">
+                        {% if context.user_level %}
+                        <div class="input-group">
+                            <div class="input-group-addon"><label class="control-label" for="player_level">Level</label></div>
+                            <input id="player_level" type="text" class="form-control text-muted" title="Level {{ context.user_level.id }}" value="{{ context.user_level.label }}" readonly="readonly">
+                            <div class="input-group-addon"><img src="/static/chess_engine/levels/{{ context.user_level.icon }}" width="20" height="20"/></div>
+                        </div>
+                        {% endif %}
+                        <div class="input-group">
+                            <div class="input-group-addon"><label class="control-label" for="player_elo">Elo</label></div>
+                            <input id="player_elo" type="text" class="form-control text-muted" title="Elo" value="{{ context.performances.elo }}" readonly="readonly">
+                        </div>
+                        <div class="input-group">
+                            <div class="input-group-addon"><label class="control-label" for="player_victories">Victories</label></div>
+                            <input id="player_victories" type="text" class="form-control text-muted" title="Number of victories" value="{{ context.performances_parsed.victories }}" readonly="readonly">
+                        </div>
+                        <div class="input-group">
+                            <div class="input-group-addon"><label class="control-label" for="player_victories">Defeats</label></div>
+                            <input id="player_defeats" type="text" class="form-control text-muted" title="Number of defeats" value="{{ context.performances_parsed.defeats }}" readonly="readonly">
+                        </div>
+                        <div class="input-group">
+                            <div class="input-group-addon"><label class="control-label" for="player_ratio">Ratio</label></div>
+                            <input id="player_ratio" type="text" class="form-control text-muted" title="Ratio" value="{{ context.performances_parsed.ratio }}" readonly="readonly">
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-lg-4">
+            <div class="panel panel-info">
+                <div class="panel-heading">
+                    <label class="panel-title">History</label>
+                    <span class="pull-right">
+                        <label>Ranked <input type="radio" class="filter_rank" name="filter_rank" value="ranked"></label>
+                        &nbsp;&nbsp;&nbsp;<label>Unranked <input type="radio" class="filter_rank" name="filter_rank" value="unranked"></label>
+                        &nbsp;&nbsp;&nbsp;<label>All <input type="radio" class="filter_rank" name="filter_rank" value="all" checked></label>
+                    </span>
+                </div>
+                <div class="panel-content" id="panel_history_content">
+                    {% include "chess_engine/profile_history.html" %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-xs-12">
+            <div class="panel panel-info">
+                <div class="panel-heading">
+                    <label class="panel-title">Color set</label>
+                </div>
+                <div class="panel-body">
+                    <div class="col-xs-12 col-sm-6 col-lg-4 col-xl-3">
+                        <h4>Board cells</h4>
+                        <form class="form-vertical">
+                            <div class="input-group">
+                                <span class="input-group-addon"><label class="control-label" for="board_cell_light_color">Light</label></span>
+                                <input type="color" class="form-control" id="board_cell_light_color" title="Light cells" value="#{{ context.user_customization.chess.board_cell_light_color }}">
+                                <span class="input-group-addon" id="board_cell_light_color_text">#{{ context.user_customization.chess.board_cell_light_color }}</span>
+                                <span class="input-group-addon" style="padding: 0px;"><img style="background-color: #{{ context.user_customization.chess.board_cell_light_color }};" src="{{ cells_folder }}/w_pawn.png" width="32" height="32"></span>
+                                <span class="input-group-addon" style="padding: 0px;"><img style="background-color: #{{ context.user_customization.chess.board_cell_light_color }};" src="{{ cells_folder }}/b_pawn.png" width="32" height="32"></span>
+                                <span class="input-group-btn"><a class="btn btn-primary" href="#" onclick="update_colorset('chess', 'board_cell_light_color');"><span class="glyphicon glyphicon-floppy-save"></span></a></span>
+                            </div>
+                            <div class="input-group">
+                                <span class="input-group-addon"><label class="control-label" for="board_cell_dark_color">Dark</label></span>
+                                <input type="color" class="form-control" id="board_cell_dark_color" title="Dark cells" value="#{{ context.user_customization.chess.board_cell_dark_color }}">
+                                <span class="input-group-addon" id="board_cell_dark_color_text">#{{ context.user_customization.chess.board_cell_dark_color }}</span>
+                                <span class="input-group-addon" style="padding: 0px;"><img style="background-color: #{{ context.user_customization.chess.board_cell_dark_color }};" src="{{ cells_folder }}/w_pawn.png" width="32" height="32"></span>
+                                <span class="input-group-addon" style="padding: 0px;"><img style="background-color: #{{ context.user_customization.chess.board_cell_dark_color }};" src="{{ cells_folder }}/b_pawn.png" width="32" height="32"></span>
+                                <span class="input-group-btn"><a class="btn btn-primary" href="#" onclick="update_colorset('chess', 'board_cell_dark_color');"><span class="glyphicon glyphicon-floppy-save"></span></a></span>
+                            </div>
+                            <div class="input-group">
+                                <span class="input-group-addon"><label class="control-label" for="source_piece">Selected</label></span>
+                                <input type="color" class="form-control" id="source_piece" title="Selected cell" value="#{{ context.user_customization.chess.source_piece }}">
+                                <span class="input-group-addon" id="source_piece_text">#{{ context.user_customization.chess.source_piece }}</span>
+                                <span class="input-group-addon" style="padding: 0px;"><img style="background-color: #{{ context.user_customization.chess.source_piece }};" src="{{ cells_folder }}/w_pawn.png" width="32" height="32"></span>
+                                <span class="input-group-addon" style="padding: 0px;"><img style="background-color: #{{ context.user_customization.chess.source_piece }};" src="{{ cells_folder }}/b_pawn.png" width="32" height="32"></span>
+                                <span class="input-group-btn"><a class="btn btn-primary" href="#" onclick="update_colorset('chess', 'source_piece');"><span class="glyphicon glyphicon-floppy-save"></span></a></span>
+                            </div>
+                            <div class="input-group">
+                                <span class="input-group-addon"><label class="control-label" for="target_piece">Target</label></span>
+                                <input type="color" class="form-control" id="target_piece" title="Target cell" value="#{{ context.user_customization.chess.target_piece }}">
+                                <span class="input-group-addon" id="target_piece_text">#{{ context.user_customization.chess.target_piece }}</span>
+                                <span class="input-group-addon" style="padding: 0px;"><img style="background-color: #{{ context.user_customization.chess.target_piece }};" src="{{ cells_folder }}/w_pawn.png" width="32" height="32"></span>
+                                <span class="input-group-addon" style="padding: 0px;"><img style="background-color: #{{ context.user_customization.chess.target_piece }};" src="{{ cells_folder }}/b_pawn.png" width="32" height="32"></span>
+                                <span class="input-group-btn"><a class="btn btn-primary" href="#" onclick="update_colorset('chess', 'target_piece');"><span class="glyphicon glyphicon-floppy-save"></span></a></span>
+                            </div>
+                            <div class="input-group">
+                                <span class="input-group-addon"><label class="control-label" for="king_checked">Check</label></span>
+                                <input type="color" class="form-control" id="king_checked" title="King checked" value="#{{ context.user_customization.chess.king_checked }}">
+                                <span class="input-group-addon" id="king_checked_text">#{{ context.user_customization.chess.king_checked }}</span>
+                                <span class="input-group-addon" style="padding: 0px;"><img style="background-color: #{{ context.user_customization.chess.king_checked }};" src="{{ cells_folder }}/w_king.png" width="32" height="32"></span>
+                                <span class="input-group-addon" style="padding: 0px;"><img style="background-color: #{{ context.user_customization.chess.king_checked }};" src="{{ cells_folder }}/b_king.png" width="32" height="32"></span>
+                                <span class="input-group-btn"><a class="btn btn-primary" href="#" onclick="update_colorset('chess', 'king_checked');"><span class="glyphicon glyphicon-floppy-save"></span></a></span>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="col-xs-12 col-sm-6 col-lg-3 col-xl-3">
+                        <h4>Edge cells</h4>
+                        <form class="form-vertical">
+                            <div class="input-group">
+                                <span class="input-group-addon"><label class="control-label" for="board_edge_cells_background_color">Background</label></span>
+                                <input type="color" class="form-control" id="board_edge_cells_background_color" title="Background" value="#{{ context.user_customization.chess.board_edge_cells_background_color }}">
+                                <span class="input-group-addon" id="board_edge_cells_background_color_text">#{{ context.user_customization.chess.board_edge_cells_background_color }}</span>
+                                <span class="input-group-btn"><a class="btn btn-primary" href="#" onclick="update_colorset('chess', 'board_edge_cells_background_color');"><span class="glyphicon glyphicon-floppy-save"></span></a></span>
+                            </div>
+                            <div class="input-group">
+                                <span class="input-group-addon"><label class="control-label" for="board_edge_cells_text_color">Font color</label></span>
+                                <input type="color" class="form-control" id="board_edge_cells_text_color" title="Edge cell font color" value="#{{ context.user_customization.chess.board_edge_cells_text_color }}">
+                                <span class="input-group-addon" id="board_edge_cells_text_color_text">#{{ context.user_customization.chess.board_edge_cells_text_color }}</span>
+                                <span class="input-group-btn"><a class="btn btn-primary" href="#" onclick="update_colorset('chess', 'board_edge_cells_text_color');"><span class="glyphicon glyphicon-floppy-save"></span></a></span>
+                            </div>
+                            <div class="input-group">
+                                <span class="input-group-addon"><label class="control-label" for="board_font_family">Font family</label></span>
+                                <input type="text" class="form-control" id="board_font_family" title="Edge cell font family" value="{{ context.user_customization.chess.board_font_family }}">
+                                <span class="input-group-btn"><a class="btn btn-primary" href="#" onclick="update_colorset('chess', 'board_font_family');"><span class="glyphicon glyphicon-floppy-save"></span></a></span>
+                            </div>
+                            <div class="input-group">
+                                <span class="input-group-addon"><label class="control-label" for="board_font_size">Font size</label></span>
+                                <input type="text" class="form-control" id="board_font_size" title="Edge cell font size" value="{{ context.user_customization.chess.board_font_size }}" maxlength="3">
+                                <span class="input-group-btn"><a class="btn btn-primary" href="#" onclick="update_colorset('chess', 'board_font_size');"><span class="glyphicon glyphicon-floppy-save"></span></a></span>
+                            </div>
+                            <div class="input-group">
+                                <span class="input-group-addon"><label class="control-label" for="board_font_size">Font sample</label></span>
+                                <span class="input-group-addon" style="padding: 0px;"><span class="edge_cell">a b c 1 2 3</span></span>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="col-xs-6 col-sm-6 col-lg-3 col-xl-3">
+                        <table border="1">
+                            <tr>
+                                <td class="edge_cell" align="center">3</td>
+                                <td><img style="background-color: #{{ context.user_customization.chess.board_cell_light_color }};" src="{{ cells_folder }}/b_horse.png" width="64" height="64"></td>
+                                <td><img style="background-color: #{{ context.user_customization.chess.king_checked }};" src="{{ cells_folder }}/b_king.png" width="64" height="64"></td>
+                                <td><img style="background-color: #{{ context.user_customization.chess.board_cell_light_color }};" src="{{ cells_folder }}/b_rook.png" width="64" height="64"></td>
+                            </tr>
+                            <tr>
+                                <td class="edge_cell" align="center">2</td>
+                                <td><img style="background-color: #{{ context.user_customization.chess.board_cell_dark_color }};" src="{{ cells_folder }}/empty_cell.png" width="64" height="64"></td>
+                                <td><img style="background-color: #{{ context.user_customization.chess.board_cell_light_color }};" src="{{ cells_folder }}/empty_cell.png" width="64" height="64"></td>
+                                <td><img style="background-color: #{{ context.user_customization.chess.target_piece }};" src="{{ cells_folder }}/w_bishop.png" width="64" height="64"></td>
+                            </tr>
+                            <tr>
+                                <td class="edge_cell" align="center">1</td>
+                                <td><img style="background-color: #{{ context.user_customization.chess.board_cell_light_color }};" src="{{ cells_folder }}/w_king.png" width="64" height="64"></td>
+                                <td><img style="background-color: #{{ context.user_customization.chess.source_piece }};" src="{{ cells_folder }}/empty_cell.png" width="64" height="64"></td>
+                                <td><img style="background-color: #{{ context.user_customization.chess.board_cell_light_color }};" src="{{ cells_folder }}/w_rook.png" width="64" height="64"></td>
+                            </tr>
+                            <tr>
+                                <td class="edge_cell"></td>
+                                <td class="edge_cell" align="center">a</td>
+                                <td class="edge_cell" align="center">b</td>
+                                <td class="edge_cell" align="center">c</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-xs-6 col-sm-6 col-lg-2 col-xl-3">
+                        <h4>Theme</h4>
+                        <form>
+                            <div class="input-group">
+                                {% with user_theme=context.user_customization.main.theme %}
+                                <select class="form-control" id="theme" title="Theme selection">
+                                    <option value="default">Default</option>
+                                    {% for theme in context.available_themes %}
+                                    {% if theme.required_level <= context.performances.level.id %}
+                                    <option value="{{ theme.name }}"{% if user_theme == theme.name %} selected="selected"{% endif %}>{{ theme.label }}</option>
+                                    {% endif %}
+                                    {% endfor %}
+                                </select>
+                                {% endwith %}
+                                <span class="input-group-btn">
+                                    <a class="btn btn-primary" href="#" onclick="update_colorset('main', 'theme');" title="Save selected theme"><span class="glyphicon glyphicon-floppy-save"></span></a>
+                                </span>
+                            </div>
+                        </form>
+                        <h4>Pieces</h4>
+                        <form>
+                            <div class="input-group">
+                                {% with user_pieces=context.user_customization.main.piece_set %}
+                                <select class="form-control" id="piece_set" title="Pieces set selection">
+                                    {% for piece_set in context.available_pieces %}
+                                    {% if piece_set.required_level <= context.performances.level.id %}
+                                    <option value="{{ piece_set.name }}"{% if user_pieces == piece_set.name %} selected="selected"{% endif %}>{{ piece_set.label }}</option>
+                                    {% endif %}
+                                    {% endfor %}
+                                </select>
+                                {% endwith %}
+                                <span class="input-group-btn">
+                                    <a class="btn btn-primary" href="#" onclick="update_colorset('main', 'piece_set');" title="Save selected piece set"><span class="glyphicon glyphicon-floppy-save"></span></a>
+                                </span>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <div class="panel-footer align-right">
+                    <a class="btn btn-primary" href="/profile/{{ request.user.id }}/chess/reset/color_set">Restore default colors</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endwith %}
+{% endblock %}
+
+{% block extra_script %}
+<script>
+        var csrf_element;
+        $('.filter_rank').click(function() {
+            var filter_rank_value = $(this).val();
+            var load_data_url = "{% url 'profile-load-data' pk=request.user.id %}";
+
+            csrf_elements = document.getElementsByName('csrfmiddlewaretoken');
+            csrf_element = csrf_elements[0];
+            var csrf_value = csrf_element.value;
+            var form_data = {
+                csrfmiddlewaretoken: csrf_value,
+                filter_rank: filter_rank_value,
+                target_user_id: {{ context.target_user.id }}
+            };
+            $.post(load_data_url, form_data, function(data) {
+                $('#panel_history_content').html(data);
+            });
+        });
+</script>
+{% endblock %}

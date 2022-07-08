@@ -1,0 +1,37 @@
+{% load static %}
+{% if game_data.token.step.data.sourceCell.column == c_key and game_data.token.step.data.sourceCell.line|add:"0" == l_key %}
+    <td bgColor="#{{ board.color_set.source_piece }}">
+{% elif game_data.token.step.data.targetCell.column == c_key and game_data.token.step.data.targetCell.line|add:"0" == l_key %}
+    <td bgColor="#{{ board.color_set.target_piece }}">
+{% else %}
+    {% if cell.role.name == 'K' and cell.side.name == game_data.token.step.side and king_check == cell.side.name %}
+    <td bgColor="#{{ board.color_set.king_checked }}">
+    {% else %}
+    <td bgColor="#{{ bgcolor }}">
+    {% endif %}
+{% endif %}
+
+{% with cells_folder="/static/chess_engine/pieces/"|add:user_pieces.folder_name %}
+{% if cell == '-' %}
+    {% if game_data.token.step.name == 'waitCellTarget' and user_can_play %}
+        <a id="{{ l_key }}_{{ c_key }}" href="{% url 'piece-action' pk=game.id action='move' line=l_key column=c_key %}">
+            <img src="{{ cells_folder }}/empty_cell.png" />
+        </a>
+    {% else %}
+        <img src="{{ cells_folder }}/empty_cell.png" />
+    {% endif %}
+{% else %}
+    {% if game_data.token.step.name == 'waitCellSource' and game_data.token.step.side == cell.side.name and user_can_play %}
+        <a id="{{ l_key }}_{{ c_key }}" href="{% url 'piece-action' pk=game.id action='select' line=l_key column=c_key %}">
+            <img src="{{ cells_folder }}/{{ cell.side.name|slice:'0:1' }}_{{ cell.picture }}" />
+        </a>
+    {% elif game_data.token.step.name == 'waitCellTarget' and user_can_play %}
+        <a id="{{ l_key }}_{{ c_key }}" href="{% url 'piece-action' pk=game.id action='move' line=l_key column=c_key %}">
+            <img src="{{ cells_folder }}/{{ cell.side.name|slice:'0:1' }}_{{ cell.picture }}" />
+        </a>
+    {% else %}
+        <img src="{{ cells_folder }}/{{ cell.side.name|slice:'0:1' }}_{{ cell.picture }}" />
+    {% endif %}
+{% endif %}
+{% endwith %}
+    </td>
