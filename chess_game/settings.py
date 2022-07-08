@@ -37,7 +37,6 @@ print('ALLOWED_HOSTS : %s' % ALLOWED_HOSTS)
 # Application definition
 
 INSTALLED_APPS = [
-    'simpleui',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -241,3 +240,5 @@ AUTH_TOKEN_VALID_DURATION = 60 * 20  # in seconds
 
 # Static Files
 STATIC_ROOT = '/chess_game/static'
+
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
